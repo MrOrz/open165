@@ -15,7 +15,6 @@ type Record = {
 
 /** Get records with site name */
 export const getRecords = cache(async (name: string) => {
-  console.log('[getRecords]', name);
   const db = getRequestContext().env.DB;
   const directHitPromise = db.prepare(`
     SELECT *

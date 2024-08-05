@@ -32,7 +32,7 @@ CREATE INDEX "ScamSiteRecord_name_idx" ON "ScamSiteRecord"(lower("name"))
 
 CREATE VIRTUAL TABLE "ScamSiteRecordFTS" USING fts5(
   name,
-  url,
+  host,
   content='ScamSiteRecord',
   tokenize='trigram'
 )

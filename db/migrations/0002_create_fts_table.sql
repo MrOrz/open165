@@ -2,7 +2,7 @@
 
 CREATE VIRTUAL TABLE IF NOT EXISTS "ScamSiteRecordFTS" USING fts5(
   name,
-  url,
+  host,
   content='ScamSiteRecord',
   tokenize='trigram'
 );

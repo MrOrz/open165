@@ -1,13 +1,12 @@
 import { trigram } from 'n-gram';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 
-type FTSRecord = {
+export type FTSRecord = {
   rowid: number;
   /** Strings with odd index are matched tokens */
   nameTokens: string[];
-  host: string[];
   /** Strings with odd index are matched tokens */
-  urlTokens: string[];
+  hostTokens: string[];
   rank: number;
 
   /** Total number of reports */
@@ -33,7 +32,7 @@ export async function searchSimilar(queryInput: string, limit=20): Promise<FTSRe
   const shouldUseFts = query.length > 2; // ScamSiteRecordFTS is a trigram index, only support queries with 3 or more characters
   const whereClause = shouldUseFts ?
     `ScamSiteRecordFTS MATCH '${trigram(query).map(g => `"${g.replaceAll('"', '""')}"`).join(' OR ')}'` :
-    `(name LIKE ? OR url LIKE ?)`;
+    `(name LIKE ? OR host LIKE ?)`;
   const values = shouldUseFts ? [] : [`%${query}%`, `%${query}%`];
 
   /** Select similar with full-text search, but reject 100% match */
@@ -41,8 +40,7 @@ export async function searchSimilar(queryInput: string, limit=20): Promise<FTSRe
     SELECT
       max(rowid) AS rowid,
       ranked.name AS name,
-      ranked.url AS url,
-      ScamSiteRecord.host as host,
+      ranked.host AS host,
       max(rank) AS rank,
       sum(count) AS count,
       min(startDate) AS startDate,
@@ -51,35 +49,35 @@ export async function searchSimilar(queryInput: string, limit=20): Promise<FTSRe
       SELECT
         rowid,
         highlight(ScamSiteRecordFTS,0,'${SEP[0]}','${SEP[1]}') AS name,
-        highlight(ScamSiteRecordFTS,1,'${SEP[0]}','${SEP[1]}') AS url,
+        highlight(ScamSiteRecordFTS,1,'${SEP[0]}','${SEP[1]}') AS host,
         rank
       FROM ScamSiteRecordFTS
       WHERE ${whereClause}
         AND lower(name) != lower(?)
-        AND lower(url) != lower(?)
+        AND lower(host) != lower(?)
       ORDER BY rank
       LIMIT ${limit*2 /* Not sure query it would fail without LIMIT. Enlarge limit for grouping in the next phase */}
     ) AS ranked
     LEFT JOIN ScamSiteRecord ON rowid = ScamSiteRecord.id
-    GROUP BY ranked.name, ranked.url
+    GROUP BY ranked.name, ranked.host
     ORDER BY rank
     LIMIT ${limit}
   `;
 
-  const { results } = await db.prepare(sql).bind(...values, query, query).all<Omit<FTSRecord, 'nameTokens' | 'urlTokens'> & {name: string; url: string}>();
+  const { results } = await db.prepare(sql).bind(...values, query, query).all<Omit<FTSRecord, 'nameTokens' | 'hostTokens'> & {name: string; host: string}>();
 
   if(!shouldUseFts) {
     // Modify result name and url to wrap matched tokens with SEP
     results.forEach(record => {
       record.name = record.name.replaceAll(query, `${SEP[0]}$&${SEP[1]}`);
-      record.url = record.url.replaceAll(query, `${SEP[0]}$&${SEP[1]}`);
+      record.host = record.host.replaceAll(query, `${SEP[0]}$&${SEP[1]}`);
     });
   }
 
-  return results.map(({name, url, ...record}) => ({
+  return results.map(({name, host, ...record}) => ({
     ...record,
     nameTokens: name.split(SEP_RE),
-    urlTokens: url.split(SEP_RE),
+    hostTokens: host.split(SEP_RE),
   }));
 }
 

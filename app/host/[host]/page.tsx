@@ -45,7 +45,7 @@ export default async function Host({params: {host}}: {params: {host: string}}) {
         <thead>
           <tr>
             <th>Name</th>
-            <th>URL</th>
+            <th>網域</th>
             <th>Reported</th>
           </tr>
         </thead>
@@ -58,8 +58,8 @@ export default async function Host({params: {host}}: {params: {host: string}}) {
                 </Link>
               </td>
               <td>
-                <Link href={`/host/${record.host}`}>
-                  <Highlighted tokens={record.urlTokens} />
+                <Link href={`/host/${record.hostTokens.join('')}`}>
+                  <Highlighted tokens={record.hostTokens} />
                 </Link>
               </td>
               <td>{record.count} time(s) during {record.startDate} and {record.endDate}</td>
